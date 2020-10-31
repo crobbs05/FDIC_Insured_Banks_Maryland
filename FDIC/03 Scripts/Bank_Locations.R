@@ -1,6 +1,4 @@
 
-setwd("R/FDIC/")
-getwd()
 library(tidyverse)
 library(ggthemes)
 library(sf)
@@ -26,9 +24,13 @@ Moco_PG_Banks <-md_locations %>% filter(COUNTY  %in% c("Montgomery","Prince Geor
 #write to local folder
 write.csv(Moco_PG_Banks,"moco_pg_banks.csv")
 
-pg<- md_locations$COUNTY[md_locations$COUNTY == "Prince George'S"]
+#logical vector selecting of banks in pg county only
+pg<- md_locations$COUNTY == "Prince George'S"
 
-t <- md_locations[pg]
+#logical vector selecting of banks in pg county only
+moco<- md_locations$COUNTY == "Montgomery"
+
+t <- md_locations[pg,]
 
 
 md_locations %>% count(ZIP, sort = TRUE) %>% head(15) %>% 
