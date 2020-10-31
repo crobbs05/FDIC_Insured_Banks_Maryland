@@ -15,8 +15,6 @@ md_locations <- read.csv(data)
 #use when you do not have access to internet
 md_locations <- read.csv("FDIC/02 Data/md_fdic_bank_locations.csv")
 
-#registering google key to geocode address to get long and lat coordinates
-register_google(key = "AIzaSyDo59xAeI9orZ-DkBVJvjgi_GsV5rrhFZs", write = TRUE)
 
 #concatenate columns to create address
 #Will use to get lat and long coordinates for bank locations
@@ -28,6 +26,9 @@ Moco_PG_Banks <-md_locations %>% filter(COUNTY  %in% c("Montgomery","Prince Geor
 #write to local folder
 write.csv(Moco_PG_Banks,"moco_pg_banks.csv")
 
+pg<- md_locations$COUNTY[md_locations$COUNTY == "Prince George'S"]
+
+t <- md_locations[pg]
 
 
 md_locations %>% count(ZIP, sort = TRUE) %>% head(15) %>% 
