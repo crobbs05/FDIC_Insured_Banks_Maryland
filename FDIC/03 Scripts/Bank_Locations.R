@@ -1,4 +1,6 @@
 
+getwd()
+
 library(tidyverse)
 library(ggthemes)
 library(sf)
@@ -14,21 +16,35 @@ md_locations <- read.csv(data)
 md_locations <- read.csv("FDIC/02 Data/md_fdic_bank_locations.csv")
 
 
+edit(md_locations)
 #concatenate columns to create address
 #Will use to get lat and long coordinates for bank locations
 md_locations <- md_locations %>% mutate(bank_address = paste(ADDRESS,CITY,STALP, ZIP,sep = " "))
 
+
 #getting long and lat coordinates with mutate_geocode function from ggmap package
-Moco_PG_Banks <-md_locations %>% filter(COUNTY  %in% c("Montgomery","Prince George'S")) %>% mutate_geocode(bank_address)
+moco_pg_banks <-md_locations %>% filter(COUNTY  %in% c("Montgomery","Prince George'S")) %>% mutate_geocode(bank_address)
+
+#changing the name to Prince George's from Prince George'S
+md_locations$COUNTY[md_locations$COUNTY=="Prince George'S"] <- "Prince George's"
+
+#indexing md_locations dataset to get banks in montgomery county only
+moco<- md_locations[md_locations$COUNTY == "Montgomery",]
+
+#indexing md_locations dataset to get banks in montgomery county only
+pgco<- md_locations[md_locations$COUNTY == "Prince George's",]
+
+#shows values without lat and long coordinates in dataset
+missing_coordinates <- moco_pg_banks[!complete.cases(moco_pg_banks$lat),]
+
+
+
 
 #write to local folder
 write.csv(Moco_PG_Banks,"moco_pg_banks.csv")
 
-#logical vector selecting of banks in pg county only
-pg<- md_locations$COUNTY == "Prince George'S"
-
-#logical vector selecting of banks in pg county only
-moco<- md_locations$COUNTY == "Montgomery"
+#read in banks in moco and pg county
+moco_pg_banks <- read.csv("moco_pg_banks.csv")
 
 
 md_locations %>% count(ZIP, sort = TRUE) %>% head(15) %>% 
