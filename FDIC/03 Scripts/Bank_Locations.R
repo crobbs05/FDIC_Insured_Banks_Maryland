@@ -30,8 +30,6 @@ pg<- md_locations$COUNTY == "Prince George'S"
 #logical vector selecting of banks in pg county only
 moco<- md_locations$COUNTY == "Montgomery"
 
-t <- md_locations[pg,]
-
 
 md_locations %>% count(ZIP, sort = TRUE) %>% head(15) %>% 
 mutate(zip_code = reorder(ZIP,n)) %>% 
@@ -58,6 +56,8 @@ theme_minimal()+
 theme(text = element_text(color = "navy"))+
 labs(title =  "Number of FDIC Insured Banks in Maryland",x = "County Names", y = "Number of Banks")
 
+
+
 #FDIC Insured  Banks by Metropolitan 
 md_locations %>% count(CBSA, sort = TRUE) %>%
 mutate(csba_reorder = reorder(CBSA,n)) %>% 
@@ -70,7 +70,6 @@ theme_tufte()+
 labs(title = " FDIC Insured Banks by Metropolitan Region", y  = "Number of Banks")+
 theme(axis.title.y =element_blank(), plot.title = element_text(hjust = .075))
   
-
 
 #Number of Banks Branches by Association
 md_locations %>% count(NAME,sort = TRUE) %>% 
