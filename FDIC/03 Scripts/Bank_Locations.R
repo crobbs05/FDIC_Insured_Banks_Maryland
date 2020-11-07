@@ -20,19 +20,23 @@ md_locations <- read.csv("FDIC/02 Data/md_fdic_bank_locations.csv")
 write.csv(Moco_PG_Banks,"moco_pg_banks.csv")
 
 #read in banks in moco and pg county
-moco_pg_banks <- read.csv("moco_pg_banks.csv")
+moco_pg_banks <- read.csv("FDIC/02 Data/moco_pg_banks.csv")
 
-
+  
 #concatenate columns to create address
 #Will use to get lat and long coordinates for bank locations
 md_locations <- md_locations %>% mutate(bank_address = paste(ADDRESS,CITY,STALP, ZIP,sep = " "))
 
 
-#getting long and lat coordinates with mutate_geocode function from ggmap package
+#get long and lat coordinates with mutate_geocode function from ggmap package
 moco_pg_banks <-md_locations %>% filter(COUNTY  %in% c("Montgomery","Prince George'S")) %>% mutate_geocode(bank_address)
 
+
+#find the number of reconds with the spelling like this: "Prince George'S
+sum(md_locations$COUNTY=="Prince George'S")
+
 #change the name to Prince George's from Prince George'S
-md_locations$COUNTY[md_locations$COUNTY=="Prince George'S"] <- "Prince George's"
+moco_pg_banks$COUNTY[moco_pg_banks$COUNTY=="Prince George'S"] <- "Prince George's"
 
 #indexing md_locations dataset to get banks in montgomery county only
 moco<- md_locations[md_locations$COUNTY == "Montgomery",]
@@ -42,10 +46,6 @@ pgco<- md_locations[md_locations$COUNTY == "Prince George's",]
 
 #shows values without lat and long coordinates in dataset
 missing_coordinates <- moco_pg_banks[!complete.cases(moco_pg_banks$lat),]
-
-
-
-
 
 
 
