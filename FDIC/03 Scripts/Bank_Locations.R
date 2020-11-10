@@ -6,6 +6,11 @@ library(ggthemes)
 library(sf)
 library(ggmap)
 library(tidygeocoder)
+library(mapview)
+install.packages("mapview",dependencies = TRUE)
+install.packages("mapdeck", dependencies = TRUE)
+install.packages("mapboxapi", dependencies = TRUE)
+
 #read in FDIC insured bank locations within the State of Maryland
 # use when you have an internet conection
 data <- "https://raw.githubusercontent.com/crobbs05/FDIC_Insured_Banks_Maryland/main/FDIC/02%20Data/md_fdic_bank_locations.csv"
@@ -20,7 +25,7 @@ md_locations <- read.csv("FDIC/02 Data/md_fdic_bank_locations.csv")
 write.csv(Moco_PG_Banks,"moco_pg_banks.csv")
 
 #read in banks in moco and pg county
-moco_pg_banks <- read.csv("FDIC/02 Data/moco_pg_banks.csv")
+moco_pg_banks <- read.csv("02 Data/Tabular/moco_pg_banks.csv")
 
   
 #concatenate columns to create address
@@ -47,6 +52,22 @@ pgco<- md_locations[md_locations$COUNTY == "Prince George's",]
 #shows values without lat and long coordinates in dataset
 missing_coordinates <- moco_pg_banks[!complete.cases(moco_pg_banks$lat),]
 
+#removed rows with missing variables.a total of three rows where removed
+moco_pg_banks_v02 <- na.omit(moco_pg_banks)
+
+#map locations in prince george's and montgomery county
+
+moco_pg_bank_locations <- st_as_sf(moco_pg_banks_v02,coords = c("lon","lat"), crs = 4269)
+
+# was not working. I used moco_pg_banks_v02 in QGIS to create a geopackage
+st_write(moco_pg_bank_locations,dsn = "02 Data/Spatial/moco_pg_bank_locations_v04.gpkg",append = FALSE)
+
+#create final dataset with geopackage
+final_bank_locations <- st_read(dsn = "02 Data/Spatial/moco_pgco_bank_locations.gpkg")
+
+#quick map
+mapview(final_bank_locations)
+
 
 
 md_locations %>% count(ZIP, sort = TRUE) %>% head(15) %>% 
@@ -59,7 +80,7 @@ theme_tufte()+
 theme(plot.title = element_text(hjust = .075),plot.subtitle =element_text(hjust = .069),axis.title.y = element_blank())+
 labs(title = "Number of Banks by Zipcode", subtitle = "Top 15 Zipcodes Statewide",  y = "Number of Banks by Zipcode")
 
-
+table(moco_pg_banks$BKCLASS)
 
 which(names(md_locations) == "STNAME")
 
