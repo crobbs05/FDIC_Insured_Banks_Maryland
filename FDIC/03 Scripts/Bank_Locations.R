@@ -1,6 +1,6 @@
 
 getwd()
-
+library(here)
 library(tidyverse)
 library(ggthemes)
 library(sf)
@@ -12,7 +12,7 @@ install.packages("mapdeck", dependencies = TRUE)
 install.packages("mapboxapi", dependencies = TRUE)
 
 #read in FDIC insured bank locations within the State of Maryland
-# use when you have an internet conection
+# use when you have an internet connection
 data <- "https://raw.githubusercontent.com/crobbs05/FDIC_Insured_Banks_Maryland/main/FDIC/02%20Data/md_fdic_bank_locations.csv"
 md_locations <- read.csv(data)
 
@@ -22,11 +22,21 @@ md_locations <- read.csv("FDIC/02 Data/md_fdic_bank_locations.csv")
 
 
 #write to local folder
-write.csv(Moco_PG_Banks,"moco_pg_banks.csv")
+write.csv(moco_pg_banks,"FDIC/02 Data/Tabular/moco_pg_banks.csv",row.names = FALSE)
 
 #read in banks in moco and pg county
-moco_pg_banks <- read.csv("02 Data/Tabular/moco_pg_banks.csv")
+moco_pg_banks <- read.csv("FDIC/02 Data/Tabular/moco_pg_banks.csv")
 
+#remove row names
+moco_pg_banks <- moco_pg_banks %>% select(-"X")
+
+#change the bank address name to full address
+moco_pg_banks <- rename(moco_pg_banks,Full_Address = bank_address)
+# relocate full address to begin of dataset
+
+moco_pg_banks <- relocate(moco_pg_banks,c(NAME,Full_Address), .before = ADDRESS) 
+
+moco_pg_banks <- relocate(moco_pg_banks,c(CITY,COUNTY,ZIP), .after = ADDRESS)
   
 #concatenate columns to create address
 #Will use to get lat and long coordinates for bank locations
@@ -38,19 +48,23 @@ moco_pg_banks <-md_locations %>% filter(COUNTY  %in% c("Montgomery","Prince Geor
 
 
 #find the number of reconds with the spelling like this: "Prince George'S
-sum(md_locations$COUNTY=="Prince George'S")
+sum(moco_pg_banks$COUNTY=="Prince George's")
 
 #change the name to Prince George's from Prince George'S
 moco_pg_banks$COUNTY[moco_pg_banks$COUNTY=="Prince George'S"] <- "Prince George's"
 
-#indexing md_locations dataset to get banks in montgomery county only
-moco<- md_locations[md_locations$COUNTY == "Montgomery",]
 
 #indexing md_locations dataset to get banks in montgomery county only
-pgco<- md_locations[md_locations$COUNTY == "Prince George's",]
+moco_banks<- moco_pg_banks[moco_pg_banks$COUNTY == "Montgomery",]
+
+
+#indexing md_locations dataset to get banks in montgomery county only
+pgco_banks<- moco_pg_banks[moco_pg_banks$COUNTY == "Prince George's",]
+
 
 #shows values without lat and long coordinates in dataset
 missing_coordinates <- moco_pg_banks[!complete.cases(moco_pg_banks$lat),]
+
 
 #removed rows with missing variables.a total of three rows where removed
 moco_pg_banks_v02 <- na.omit(moco_pg_banks)
@@ -70,7 +84,7 @@ mapview(final_bank_locations)
 
 
 
-md_locations %>% count(ZIP, sort = TRUE) %>% head(15) %>% 
+moco_pg_banks %>% count(ZIP, sort = TRUE) %>% head(15) %>% 
 mutate(zip_code = reorder(ZIP,n)) %>% 
 ggplot(mapping = aes(x = zip_code,y = n))+
 geom_col(alpha = .50,  fill= "blue")+
@@ -82,10 +96,10 @@ labs(title = "Number of Banks by Zipcode", subtitle = "Top 15 Zipcodes Statewide
 
 table(moco_pg_banks$BKCLASS)
 
-which(names(md_locations) == "STNAME")
+which(names(moco_pg_banks) == "STNAME")
 
 #number of FDIC Insured Banks in Maryland
-md_locations %>% count(COUNTY,sort = TRUE) %>% 
+moco_pg_banks %>% count(COUNTY,sort = TRUE) %>% 
 head(10) %>% mutate(county_name = reorder(COUNTY,n)) %>% 
 ggplot(mapping = aes(x = county_name,y = n, fill = county_name)) +
 geom_col(fill = "darkgreen",color ="black")+
@@ -98,7 +112,7 @@ labs(title =  "Number of FDIC Insured Banks in Maryland",x = "County Names", y =
 
 
 #FDIC Insured  Banks by Metropolitan 
-md_locations %>% count(CBSA, sort = TRUE) %>%
+moco_pg_banks %>% count(CBSA, sort = TRUE) %>%
 mutate(csba_reorder = reorder(CBSA,n)) %>% 
 ggplot(mapping = aes(x = csba_reorder, y = n))+
 geom_col(fill = "navy") + 
@@ -111,7 +125,7 @@ theme(axis.title.y =element_blank(), plot.title = element_text(hjust = .075))
   
 
 #Number of Banks Branches by Association
-md_locations %>% count(NAME,sort = TRUE) %>% 
+moco_pg_banks %>% count(NAME,sort = TRUE) %>% 
 head(10) %>%  
 mutate(bank_names = reorder(NAME,n)) %>% 
 ggplot(mapping = aes(bank_names, n)) + 
