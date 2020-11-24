@@ -1,65 +1,63 @@
 
 getwd()
-library(here)
+
 library(tidyverse)
 library(ggthemes)
 library(sf)
 library(ggmap)
 library(tidygeocoder)
+library(tidycensus)
 library(mapview)
-install.packages("mapview",dependencies = TRUE)
-install.packages("mapdeck", dependencies = TRUE)
-install.packages("mapboxapi", dependencies = TRUE)
+library(tmap)
+
+census_api_key("658d2b9a22ad0ae4e3f06c3753013994a3d339bc",install = TRUE)
 
 #read in FDIC insured bank locations within the State of Maryland
 # use when you have an internet connection
 data <- "https://raw.githubusercontent.com/crobbs05/FDIC_Insured_Banks_Maryland/main/FDIC/02%20Data/md_fdic_bank_locations.csv"
 md_locations <- read.csv(data)
 
-
-#use when you do not have access to internet
-md_locations <- read.csv("FDIC/02 Data/md_fdic_bank_locations.csv")
-
+#read in banks in moco and pg county
+moco_pg_banks <- read.csv("02 Data/Tabular/moco_pg_banks.csv_v02")
 
 #write to local folder
-write.csv(moco_pg_banks,"FDIC/02 Data/Tabular/moco_pg_banks.csv",row.names = FALSE)
+write.csv(moco_pg_banks,"02 Data/Tabular/moco_pg_banks.csv_v02",row.names = FALSE)
 
-#read in banks in moco and pg county
-moco_pg_banks <- read.csv("FDIC/02 Data/Tabular/moco_pg_banks.csv")
 
-#remove row names
-moco_pg_banks <- moco_pg_banks %>% select(-"X")
+#column names to a single address column for gecoding
+md_locations <- unite(md_locations, "BANK_ADDRESS",ADDRESS,CITY,STALP, ZIP,sep = " ", remove = FALSE)
 
-#change the bank address name to full address
-moco_pg_banks <- rename(moco_pg_banks,Full_Address = bank_address)
+
 # relocate full address to begin of dataset
+md_locations <- relocate(md_locations,c(NAME,OFFNAME), .before = BANK_ADDRESS) %>%
+relocate(c(CITY,COUNTY,ZIP,STALP,BKCLASS,SERVTYPE,CBSA,CBSA_DIV,CBSA_METRO_NAME), .after = BANK_ADDRESS)
 
-moco_pg_banks <- relocate(moco_pg_banks,c(NAME,Full_Address), .before = ADDRESS) 
 
-moco_pg_banks <- relocate(moco_pg_banks,c(CITY,COUNTY,ZIP), .after = ADDRESS)
-  
-#concatenate columns to create address
-#Will use to get lat and long coordinates for bank locations
-md_locations <- md_locations %>% mutate(bank_address = paste(ADDRESS,CITY,STALP, ZIP,sep = " "))
+#change the name to Prince George's from Prince George'S
+md_locations$COUNTY <- recode(md_locations$COUNTY,"Prince George'S" = "Prince George's")
+
+# selecting the first 12 columns of the dataset
+md_locations <- select(md_locations,c(1:12))
 
 
 #get long and lat coordinates with mutate_geocode function from ggmap package
-moco_pg_banks <-md_locations %>% filter(COUNTY  %in% c("Montgomery","Prince George'S")) %>% mutate_geocode(bank_address)
+moco_pg_banks <- md_locations %>% filter(COUNTY  %in% c("Montgomery","Prince George's")) %>% mutate_geocode(BANK_ADDRESS)
 
 
-#find the number of reconds with the spelling like this: "Prince George'S
-sum(moco_pg_banks$COUNTY=="Prince George's")
+
 
 #change the name to Prince George's from Prince George'S
-moco_pg_banks$COUNTY[moco_pg_banks$COUNTY=="Prince George'S"] <- "Prince George's"
+#moco_pg_banks$COUNTY[moco_pg_banks$COUNTY=="Prince George'S"] <- "Prince George's"
 
 
 #indexing md_locations dataset to get banks in montgomery county only
-moco_banks<- moco_pg_banks[moco_pg_banks$COUNTY == "Montgomery",]
+#moco_banks<- moco_pg_banks[moco_pg_banks$COUNTY == "Montgomery",]
 
 
 #indexing md_locations dataset to get banks in montgomery county only
-pgco_banks<- moco_pg_banks[moco_pg_banks$COUNTY == "Prince George's",]
+#pgco_banks<- moco_pg_banks[moco_pg_banks$COUNTY == "Prince George's",]
+
+#pgbanks <- moco_pg_banks %>% filter(COUNTY == "Prince George's")
 
 
 #shows values without lat and long coordinates in dataset
@@ -67,22 +65,51 @@ missing_coordinates <- moco_pg_banks[!complete.cases(moco_pg_banks$lat),]
 
 
 #removed rows with missing variables.a total of three rows where removed
-moco_pg_banks_v02 <- na.omit(moco_pg_banks)
+moco_pg_banks <- na.omit(moco_pg_banks)
 
 #map locations in prince george's and montgomery county
-
-moco_pg_bank_locations <- st_as_sf(moco_pg_banks_v02,coords = c("lon","lat"), crs = 4269)
+moco_pg_bank_locations <- st_as_sf(moco_pg_banks,coords = c("lon","lat"), crs = 4269)
 
 # was not working. I used moco_pg_banks_v02 in QGIS to create a geopackage
-st_write(moco_pg_bank_locations,dsn = "02 Data/Spatial/moco_pg_bank_locations_v04.gpkg",append = FALSE)
+st_write(moco_pg_bank_locations,dsn = "02 Data/Spatial/moco_pg_bank_locations_v05.gpkg",append = FALSE)
 
 #create final dataset with geopackage
-final_bank_locations <- st_read(dsn = "02 Data/Spatial/moco_pgco_bank_locations.gpkg")
+final_bank_locations <- st_read(dsn = "02 Data/Spatial/moco_pg_bank_locations_v05.gpkg")
 
-#quick map
+#use tidycensus to get census tracts and median income data for montgomery and prince george's county 
+
+variables <- load_variables(year = 2018,dataset = "acs5/subject",cache = TRUE)
+
+counties <- c("Montgomery","Prince George's")
+
+
+moco_pgco_cty_boundaries_data <- get_acs(geography = "tract",
+variables = c(median_income = "S1901_C01_012", population = "S0101_C01_001"),state = "MD",county = counties, geometry = TRUE)
+
+#quick map of bank locations
 mapview(final_bank_locations)
+#quick map of montgomery and prince george's county
+mapview(moco_pgco_cty_boundaries_data)
+
+median_income_variable <- moco_pgco_cty_boundaries_data %>%  filter(variable == "median_income")
+
+population_variable <- moco_pgco_cty_boundaries_data %>%  filter(variable == "population")
+
+moco_pgco_cty_boundaries_data[moco_pgco_cty_boundaries_data$variable == "population",]
+
+median_income_variable %>% ggplot(mapping =aes(fill = estimate)) + geom_sf(color = NA)+ coord_sf(crs = 4269) + scale_fill_viridis_c() + theme_void()
 
 
+population_variable %>% ggplot(mapping =aes(fill = estimate)) + geom_sf(color = NA)+ coord_sf(crs = 4269) + scale_fill_viridis_c() + theme_void()
+
+
+#visualizing the location of the banks with median income
+tmap_mode("view")
+tm_shape(median_income_variable) + tm_polygons("estimate") + 
+  tm_shape(final_bank_locations)+ tm_symbols(col = "red",size =.015,alpha =.25)
+  
+
+class(population_variable)
 
 moco_pg_banks %>% count(ZIP, sort = TRUE) %>% head(15) %>% 
 mutate(zip_code = reorder(ZIP,n)) %>% 
