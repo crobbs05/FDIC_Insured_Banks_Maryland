@@ -8,6 +8,8 @@ library(tidycensus),
 library(mapview),
 library(tmap))
 
+library(shinyjs)
+
 #read in FDIC insured bank locations within the State of Maryland
 # use when you have an internet connection
 data <- "https://raw.githubusercontent.com/crobbs05/FDIC_Insured_Banks_Maryland/main/FDIC/02%20Data/md_fdic_bank_locations.csv"
@@ -108,11 +110,10 @@ population_variable %>% ggplot(mapping =aes(fill = populationE)) + geom_sf(color
 
 #visualizing the location of the banks with median income
 tmap_mode("view")
-tm_shape(median_income_variable) + tm_polygons("median_incomeE") + 
-  tm_shape(final_bank_locations)+ tm_symbols(col = "red",size =.015,alpha =.25)
-  
+tm_shape(median_income_variable) + tm_fill("median_incomeE",palette = "BuGn", title = "Median Income\nCensus Tract") + tm_borders(col = "darkgray", lwd = 0.25)+
+tm_shape(final_bank_locations)+ tm_dots(col = "orange",size =.015,alpha =.5, border.lwd =0, legend.show = TRUE, title = "Bank Locations") + tm_basemap(leaflet::providers$CartoDB.Positron)
 
-class(population_variable)
+tmaptools::palette_explorer()
 
 moco_pg_banks %>% count(ZIP, sort = TRUE) %>% head(15) %>% 
 mutate(zip_code = reorder(ZIP,n)) %>% 
