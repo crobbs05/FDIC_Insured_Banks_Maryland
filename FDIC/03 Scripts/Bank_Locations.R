@@ -1,16 +1,12 @@
 
 getwd()
 
-library(tidyverse)
-library(ggthemes)
-library(sf)
-library(ggmap)
-library(tidygeocoder)
-library(tidycensus)
-library(mapview)
-library(tmap)
-
-census_api_key("658d2b9a22ad0ae4e3f06c3753013994a3d339bc",install = TRUE)
+packages <- c(library(tidyverse),
+library(ggthemes),
+library(sf),
+library(tidycensus),
+library(mapview),
+library(tmap))
 
 #read in FDIC insured bank locations within the State of Maryland
 # use when you have an internet connection
@@ -78,34 +74,41 @@ final_bank_locations <- st_read(dsn = "02 Data/Spatial/moco_pg_bank_locations_v0
 
 #use tidycensus to get census tracts and median income data for montgomery and prince george's county 
 
+
 variables <- load_variables(year = 2018,dataset = "acs5/subject",cache = TRUE)
 
+#create counties variable to use with tidycensus data extraction
 counties <- c("Montgomery","Prince George's")
 
+#tabular data for median_income and population data
+moco_pgco_cty_raw_data <- get_acs(geography = "tract",
+variables = c(median_income = "S1901_C01_012", population = "S0101_C01_001"),state = "MD",county = counties, geometry = FALSE, output = "wide")
 
+#spatial data for median_income and population data
 moco_pgco_cty_boundaries_data <- get_acs(geography = "tract",
-variables = c(median_income = "S1901_C01_012", population = "S0101_C01_001"),state = "MD",county = counties, geometry = TRUE)
+variables = c(median_income = "S1901_C01_012", population = "S0101_C01_001"),state = "MD",county = counties, geometry = TRUE,output = "wide")
 
-#quick map of bank locations
-mapview(final_bank_locations)
-#quick map of montgomery and prince george's county
-mapview(moco_pgco_cty_boundaries_data)
+#you can also use the pivot_wider to change the data from long to wide by increasing the number of columns
+pivot_wider(moco_pgco_cty_raw_data, names_from = variable, values_from = c(estimate,moe))
+vignette("pivot")
 
-median_income_variable <- moco_pgco_cty_boundaries_data %>%  filter(variable == "median_income")
 
-population_variable <- moco_pgco_cty_boundaries_data %>%  filter(variable == "population")
+
+median_income_variable <- moco_pgco_cty_boundaries_data %>%  select(median_incomeE)
+
+population_variable <- moco_pgco_cty_boundaries_data %>%  select(populationE)
 
 moco_pgco_cty_boundaries_data[moco_pgco_cty_boundaries_data$variable == "population",]
 
-median_income_variable %>% ggplot(mapping =aes(fill = estimate)) + geom_sf(color = NA)+ coord_sf(crs = 4269) + scale_fill_viridis_c() + theme_void()
+median_income_variable %>% ggplot(mapping =aes(fill = median_incomeE)) + geom_sf(color = NA)+ coord_sf(crs = 4269) + scale_fill_viridis_c() + theme_void()
 
 
-population_variable %>% ggplot(mapping =aes(fill = estimate)) + geom_sf(color = NA)+ coord_sf(crs = 4269) + scale_fill_viridis_c() + theme_void()
+population_variable %>% ggplot(mapping =aes(fill = populationE)) + geom_sf(color = NA)+ coord_sf(crs = 4269) + scale_fill_viridis_c() + theme_void()
 
 
 #visualizing the location of the banks with median income
 tmap_mode("view")
-tm_shape(median_income_variable) + tm_polygons("estimate") + 
+tm_shape(median_income_variable) + tm_polygons("median_incomeE") + 
   tm_shape(final_bank_locations)+ tm_symbols(col = "red",size =.015,alpha =.25)
   
 
@@ -124,6 +127,8 @@ labs(title = "Number of Banks by Zipcode", subtitle = "Top 15 Zipcodes Statewide
 table(moco_pg_banks$BKCLASS)
 
 which(names(moco_pg_banks) == "STNAME")
+
+
 
 #number of FDIC Insured Banks in Maryland
 moco_pg_banks %>% count(COUNTY,sort = TRUE) %>% 
